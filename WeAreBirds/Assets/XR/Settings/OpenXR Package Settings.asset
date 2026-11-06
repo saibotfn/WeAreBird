@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b7365b139f7aec43b23d26b7a48b5a6, type: 3}
   m_Name: MetaQuestTouchPlusControllerProfile Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.MetaQuestTouchPlusControllerProfile
-  m_enabled: 1
+  m_enabled: 0
   nameUi: Meta Quest Touch Plus Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.metaquestplus
@@ -252,9 +252,9 @@ MonoBehaviour:
   - {fileID: 8150698021778717698}
   - {fileID: -2171783886158362870}
   - {fileID: 1852027630209982154}
-  - {fileID: -2085823793761198815}
-  - {fileID: 3567044494454710421}
-  - {fileID: 6514720293540962100}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 6035000977940129997}
   - {fileID: -880890146177404620}
   - {fileID: -2629900785178036272}
@@ -263,23 +263,23 @@ MonoBehaviour:
   - {fileID: -1625074948686616105}
   - {fileID: 2801131881515116567}
   - {fileID: 4328037735213114245}
-  - {fileID: 4253140677117961576}
+  - {fileID: 0}
   - {fileID: 7208762543540599627}
   - {fileID: 7470211282951245684}
-  - {fileID: 603050762453250107}
-  - {fileID: 8988170902931920303}
-  - {fileID: -2863510122636245800}
-  - {fileID: -2373182844444350471}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 4716745616030989192}
   - {fileID: 6434546136574962894}
   - {fileID: 7943802662562491918}
   - {fileID: 2735780424223237947}
-  - {fileID: 5537410623245565919}
+  - {fileID: 0}
   - {fileID: 1112207009626454221}
   - {fileID: -6263654160963322749}
   - {fileID: -2820098684295580856}
   - {fileID: -4559067318959606378}
-  - {fileID: -5454449714219531359}
+  - {fileID: 0}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -714,7 +714,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: feeef8d85de8db242bdda70cc7ff5acd, type: 3}
   m_Name: OculusTouchControllerProfile Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.OculusTouchControllerProfile
-  m_enabled: 1
+  m_enabled: 0
   nameUi: Oculus Touch Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.oculustouch
@@ -889,17 +889,17 @@ MonoBehaviour:
   - {fileID: -8910388554700442302}
   - {fileID: 7901380026466202764}
   - {fileID: -4912124179541319810}
-  - {fileID: -5092585805144797255}
-  - {fileID: -3219552106586356564}
-  - {fileID: -372958316674012423}
-  - {fileID: 4955723536600691946}
-  - {fileID: -141563114101199917}
-  - {fileID: 3621695718022972097}
-  - {fileID: -7150559268767637298}
-  - {fileID: 6648993483533105462}
-  - {fileID: -2081699586076473347}
-  - {fileID: 4507068031792376615}
-  - {fileID: 6017111961182495407}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -941,7 +941,7 @@ MonoBehaviour:
   m_symmetricProjection: 0
   m_optimizeMultiviewRenderRegions: 0
   m_multiviewRenderRegionsOptimizationMode: 0
-  m_hasMigratedMultiviewRenderRegionSetting: 0
+  m_hasMigratedMultiviewRenderRegionSetting: 1
   m_foveatedRenderingApi: 1
   m_useOpenXRPredictedTime: 1
 --- !u!114 &1112207009626454221
