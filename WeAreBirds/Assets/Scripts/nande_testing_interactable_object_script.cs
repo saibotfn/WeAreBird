@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class nande_testing_interactable_object_script : MonoBehaviour
@@ -19,6 +20,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
     private LineRenderer dropoffRing;
     private Renderer dropoffBeamRenderer;
     private Collider[] dropoffColliders;
+    private Transform[] prefabChildren;
     private bool dropoffAvailable;
     private float labelHeight;
     private float labelBobTime;
@@ -31,6 +33,8 @@ public class nande_testing_interactable_object_script : MonoBehaviour
 
     void Awake()
     {
+        prefabChildren = GetComponentsInChildren<Transform>(true);
+
         if (!dropoff)
             return;
 
@@ -71,6 +75,9 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         float topHeight = objectCollider != null
             ? transform.InverseTransformPoint(objectCollider.bounds.max).y
             : 0f;
+        float bottomHeight = objectCollider != null
+            ? transform.InverseTransformPoint(objectCollider.bounds.min).y
+            : 0f;
         labelHeight = topHeight + 0.8f;
 
         GameObject placementObject = new GameObject("PackagePlacementPoint");
@@ -105,8 +112,8 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         dropoffLabel.text = "Drop Off " + deliverySetNumber;
         dropoffLabel.gameObject.SetActive(true);
 
-        CreateDropoffRing(objectCollider, topHeight);
-        CreateDropoffBeam(topHeight);
+        CreateDropoffRing(objectCollider, bottomHeight);
+        CreateDropoffBeam(bottomHeight);
     }
 
     void UpdateLabelVisibility()
@@ -132,7 +139,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         }
     }
 
-    void CreateDropoffRing(Collider objectCollider, float topHeight)
+    void CreateDropoffRing(Collider objectCollider, float bottomHeight)
     {
         float radius = objectCollider != null
             ? Mathf.Max(objectCollider.bounds.extents.x, objectCollider.bounds.extents.z) + 0.15f
@@ -140,7 +147,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
 
         GameObject ringObject = new GameObject("DropOffRing");
         ringObject.transform.SetParent(transform, false);
-        ringObject.transform.localPosition = new Vector3(0f, topHeight + 0.04f, 0f);
+        ringObject.transform.localPosition = new Vector3(0f, bottomHeight + 0.04f, 0f);
 
         dropoffRing = ringObject.AddComponent<LineRenderer>();
         dropoffRing.useWorldSpace = false;
@@ -181,12 +188,12 @@ public class nande_testing_interactable_object_script : MonoBehaviour
             dropoffBeamRenderer.enabled = shouldBeActive;
     }
 
-    void CreateDropoffBeam(float topHeight)
+    void CreateDropoffBeam(float bottomHeight)
     {
         GameObject beamObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         beamObject.name = "DropOffBeam";
         beamObject.transform.SetParent(transform, false);
-        beamObject.transform.localPosition = new Vector3(0f, topHeight + 2.5f, 0f);
+        beamObject.transform.localPosition = new Vector3(0f, bottomHeight + 2.5f, 0f);
         beamObject.transform.localScale = new Vector3(0.7f, 2.5f, 0.7f);
 
         Collider beamCollider = beamObject.GetComponent<Collider>();
@@ -251,6 +258,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         if (inventory.PickupPackage(gameObject, deliverySetNumber))
         {
             alreadyUsed = true;
+            SetChildrenActive(false);
 
             Debug.Log("Dove picked up the package!");
         }
@@ -271,9 +279,11 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         if (inventory.DropoffPackage(placementPoint, deliverySetNumber))
         {
             alreadyUsed = true;
+            SetChildrenActive(false);
             UpdateLabelVisibility();
 
             inventory.CollectPayment(dropoffPayment);
+            ShowPaymentPopup(dropoffPayment);
             Debug.Log("Dove dropped off the package and collected the payment!");
         }
     }
@@ -282,5 +292,59 @@ public class nande_testing_interactable_object_script : MonoBehaviour
     {
         if (inventory.DepositMoney())
             Debug.Log("Money deposited at Onkel's home!");
+    }
+
+    void SetChildrenActive(bool isActive)
+    {
+        foreach (Transform child in prefabChildren)
+        {
+            if (child != transform)
+                child.gameObject.SetActive(isActive);
+        }
+    }
+
+    void ShowPaymentPopup(int payment)
+    {
+        GameObject popupObject = new GameObject("PaymentPopup");
+        popupObject.transform.SetParent(transform, false);
+        popupObject.transform.localPosition = new Vector3(0f, labelHeight, 0f);
+
+        TextMesh popupText = popupObject.AddComponent<TextMesh>();
+        popupText.anchor = TextAnchor.MiddleCenter;
+        popupText.alignment = TextAlignment.Center;
+        popupText.characterSize = 0.06f;
+        popupText.fontSize = 64;
+        popupText.color = Color.green;
+        popupText.text = "+$" + payment;
+
+        StartCoroutine(AnimatePaymentPopup(popupObject));
+    }
+
+    IEnumerator AnimatePaymentPopup(GameObject popupObject)
+    {
+        const float popupDuration = 1.5f;
+        float elapsed = 0f;
+        Vector3 startPosition = popupObject.transform.localPosition;
+
+        while (elapsed < popupDuration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / popupDuration);
+            Vector3 position = startPosition;
+            position.y += progress * 0.8f;
+            popupObject.transform.localPosition = position;
+
+            TextMesh popupText = popupObject.GetComponent<TextMesh>();
+            if (popupText != null)
+            {
+                Color color = popupText.color;
+                color.a = 1f - progress;
+                popupText.color = color;
+            }
+
+            yield return null;
+        }
+
+        Destroy(popupObject);
     }
 }
