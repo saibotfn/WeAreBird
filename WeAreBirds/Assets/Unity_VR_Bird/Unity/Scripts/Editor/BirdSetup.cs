@@ -137,6 +137,11 @@ namespace AlderBird.Editor
                 wrapper = new GameObject("Bird");
                 var orientation = new GameObject("Orientation");
                 orientation.transform.SetParent(wrapper.transform, false);
+                var cameraObject = new GameObject("BirdCamera");
+                cameraObject.transform.SetParent(wrapper.transform, false);
+                cameraObject.transform.localPosition = new Vector3(0f, 1.5f, -4f);
+                cameraObject.transform.localRotation = Quaternion.Euler(10f, 0f, 0f);
+                cameraObject.AddComponent<Camera>();
                 var model = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset);
                 model.transform.SetParent(orientation.transform, false);
                 model.name = "Bird_Model";
@@ -164,6 +169,7 @@ namespace AlderBird.Editor
                 var head = Bone(model, "Head");
                 var behaviour = wrapper.AddComponent<BirdController>();
                 behaviour.Configure(animator, head, head.InverseTransformDirection(wrapper.transform.forward));
+                wrapper.AddComponent<BirdFlightController>();
                 foreach (var renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
                     PrefabUtility.RecordPrefabInstancePropertyModifications(renderer);
                 foreach (var transform in model.GetComponentsInChildren<Transform>(true))
