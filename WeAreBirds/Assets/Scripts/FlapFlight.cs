@@ -20,14 +20,24 @@ public class FlapFlight : MonoBehaviour
     [SerializeField] float glideForwardAccel = 2.5f; // m/s² of forward push while gliding
     [SerializeField] float glideCruiseSpeed = 8f;    // the push stops once horizontal speed reaches this
 
+    [Header("Ground locomotion handoff")]
+    [SerializeField] CharacterController characterController;   // the XR rig's CharacterController
+    [SerializeField] Behaviour[] groundLocomotionComponents;     // XRI move/grab/climb/jump providers etc.
+    [SerializeField] LayerMask groundMask = ~0;
+    [SerializeField] float groundCheckDistance = 0.25f;          // raycast length below the feet
+    [SerializeField] float groundedGraceTime = 0.2f;             // must be grounded this long before handing back control
+
     Rigidbody rb;
     Vector3 prevLeft;
     Vector3 prevRight;
+    bool isFlying;
+    float groundedTimer;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.linearDamping = normalDamping;
+        SetFlying(true); // start in flight mode; will hand back to locomotion once grounded
     }
 
     void Start()
@@ -51,6 +61,15 @@ public class FlapFlight : MonoBehaviour
         float spread = Vector3.Distance(curLeft, curRight);
         bool gliding = !flapped && spread > glideSpreadDistance;
 
+        UpdateFlightState(flapped, gliding);
+
+        if (!isFlying)
+        {
+            prevLeft = curLeft;
+            prevRight = curRight;
+            return;
+        }
+
         rb.useGravity = !gliding;
         rb.linearDamping = gliding ? glideDamping : normalDamping;
 
@@ -65,6 +84,55 @@ public class FlapFlight : MonoBehaviour
 
         prevLeft = curLeft;
         prevRight = curRight;
+    }
+
+    void UpdateFlightState(bool flapped, bool gliding)
+    {
+        if (flapped || gliding)
+        {
+            groundedTimer = 0f;
+            if (!isFlying) SetFlying(true);
+            return;
+        }
+
+        if (IsGrounded())
+        {
+            groundedTimer += Time.deltaTime;
+            if (isFlying && groundedTimer >= groundedGraceTime)
+                SetFlying(false);
+        }
+        else
+        {
+            groundedTimer = 0f;
+            if (!isFlying) SetFlying(true);
+        }
+    }
+
+    bool IsGrounded()
+    {
+        return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundMask, QueryTriggerInteraction.Ignore);
+    }
+
+    void SetFlying(bool flying)
+    {
+        isFlying = flying;
+
+        rb.isKinematic = !flying;
+        rb.useGravity = flying;
+        if (!flying)
+            rb.linearVelocity = Vector3.zero;
+
+        if (characterController != null)
+            characterController.enabled = !flying;
+
+        if (groundLocomotionComponents != null)
+        {
+            foreach (var component in groundLocomotionComponents)
+            {
+                if (component != null)
+                    component.enabled = !flying;
+            }
+        }
     }
 
     bool ApplyFlap(Vector3 localVel)
