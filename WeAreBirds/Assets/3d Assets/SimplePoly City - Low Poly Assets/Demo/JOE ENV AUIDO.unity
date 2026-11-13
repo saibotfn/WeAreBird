@@ -53229,7 +53229,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4831054585939611134, guid: 9e3b27c8a8caf624ab038a1806fc72e3, type: 3}
       propertyPath: m_Name
-      value: IBAN
+      value: "IBAN (F\xE6tter)"
       objectReference: {fileID: 0}
     - target: {fileID: 5206313040890533700, guid: 9e3b27c8a8caf624ab038a1806fc72e3, type: 3}
       propertyPath: m_LocalScale.x
