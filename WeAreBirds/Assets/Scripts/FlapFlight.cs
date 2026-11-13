@@ -23,8 +23,10 @@ public class FlapFlight : MonoBehaviour
     [Header("Ground locomotion handoff")]
     [SerializeField] CharacterController characterController;   // the XR rig's CharacterController
     [SerializeField] Behaviour[] groundLocomotionComponents;     // XRI move/grab/climb/jump providers etc.
-    [SerializeField] LayerMask groundMask = ~0;
+    [Tooltip("Assign only the actual ground/terrain layer(s). Defaults to Nothing so the bird's own colliders can never be mistaken for ground.")]
+    [SerializeField] LayerMask groundMask = 0;
     [SerializeField] float groundCheckDistance = 0.25f;          // raycast length below the feet
+    [SerializeField] float groundCheckOriginOffset = 0.1f;       // lift the ray start above transform.position to clear self colliders
     [SerializeField] float groundedGraceTime = 0.2f;             // must be grounded this long before handing back control
 
     Rigidbody rb;
@@ -37,6 +39,7 @@ public class FlapFlight : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.linearDamping = normalDamping;
+        groundMask &= ~(1 << gameObject.layer); // never let the bird's own layer count as "ground"
         SetFlying(true); // start in flight mode; will hand back to locomotion once grounded
     }
 
@@ -110,7 +113,10 @@ public class FlapFlight : MonoBehaviour
 
     bool IsGrounded()
     {
-        return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundMask, QueryTriggerInteraction.Ignore);
+        if (groundMask.value == 0) return false; // no ground layer configured yet - never auto-land
+
+        Vector3 origin = transform.position + Vector3.up * groundCheckOriginOffset;
+        return Physics.Raycast(origin, Vector3.down, groundCheckDistance + groundCheckOriginOffset, groundMask, QueryTriggerInteraction.Ignore);
     }
 
     void SetFlying(bool flying)
