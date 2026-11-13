@@ -11,6 +11,7 @@ public class EnemyZone : MonoBehaviour
         {
             playerInside = true;
             player = other.transform;
+            ChaseFilter.Instance.isChased = true;   // filter on
 
             Debug.Log("Player entered the enemy zone!");
         }
@@ -22,6 +23,7 @@ public class EnemyZone : MonoBehaviour
         {
             playerInside = false;
             player = null;
+            ChaseFilter.Instance.isChased = false;  // filter off
 
             Debug.Log("Player left the enemy zone.");
         }
