@@ -17,9 +17,12 @@ public class nande_testing_interactable_object_script : MonoBehaviour
     private Transform packagePlacementPoint;
     private Light dropoffLight;
     private TextMesh dropoffLabel;
-    private LineRenderer dropoffRing;
     private Renderer dropoffBeamRenderer;
     private Collider[] dropoffColliders;
+    private Collider[] pickupColliders;
+    private Light pickupLight;
+    private TextMesh pickupLabel;
+    private Renderer pickupBeamRenderer;
     private Transform[] prefabChildren;
     private bool dropoffAvailable;
     private float labelHeight;
@@ -35,6 +38,13 @@ public class nande_testing_interactable_object_script : MonoBehaviour
     {
         prefabChildren = GetComponentsInChildren<Transform>(true);
 
+        if (pickup)
+        {
+            pickupColliders = GetComponents<Collider>();
+            CreatePickupVisuals();
+            UpdatePickupAvailability();
+        }
+
         if (!dropoff)
             return;
 
@@ -45,6 +55,13 @@ public class nande_testing_interactable_object_script : MonoBehaviour
 
     void Update()
     {
+        if (pickup)
+        {
+            UpdatePickupAvailability();
+            FaceTextToPlayer(pickupLabel != null ? pickupLabel.transform : null);
+            return;
+        }
+
         if (!dropoff)
             return;
 
@@ -64,6 +81,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
             Vector3 labelPosition = dropoffLabel.transform.localPosition;
             labelPosition.y = labelHeight + Mathf.Sin(labelBobTime * 2.5f) * 0.12f;
             dropoffLabel.transform.localPosition = labelPosition;
+            FaceTextToPlayer(dropoffLabel.transform);
         }
 
         UpdateLabelVisibility();
@@ -112,8 +130,64 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         dropoffLabel.text = "Drop Off " + deliverySetNumber;
         dropoffLabel.gameObject.SetActive(true);
 
-        CreateDropoffRing(objectCollider, bottomHeight);
         CreateDropoffBeam(bottomHeight);
+    }
+
+    void CreatePickupVisuals()
+    {
+        Collider objectCollider = GetComponent<Collider>();
+        float topHeight = objectCollider != null
+            ? transform.InverseTransformPoint(objectCollider.bounds.max).y
+            : 0f;
+        float bottomHeight = objectCollider != null
+            ? transform.InverseTransformPoint(objectCollider.bounds.min).y
+            : 0f;
+        labelHeight = topHeight + 0.8f;
+
+        GameObject lightObject = new GameObject("PickupLight");
+        lightObject.transform.SetParent(transform, false);
+        lightObject.transform.localPosition = new Vector3(0f, topHeight + 0.2f, 0f);
+        lightObject.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+        pickupLight = lightObject.AddComponent<Light>();
+        pickupLight.type = LightType.Spot;
+        pickupLight.color = Color.green;
+        pickupLight.range = 6f;
+        pickupLight.spotAngle = 45f;
+        pickupLight.innerSpotAngle = 20f;
+        pickupLight.intensity = 12f;
+        pickupLight.renderMode = LightRenderMode.ForcePixel;
+        pickupLight.shadows = LightShadows.None;
+
+        GameObject labelObject = new GameObject("PickupLabel");
+        labelObject.transform.SetParent(transform, false);
+        labelObject.transform.localPosition = new Vector3(0f, labelHeight, 0f);
+        pickupLabel = labelObject.AddComponent<TextMesh>();
+        pickupLabel.anchor = TextAnchor.MiddleCenter;
+        pickupLabel.alignment = TextAlignment.Center;
+        pickupLabel.characterSize = 0.05f;
+        pickupLabel.fontSize = 64;
+        pickupLabel.color = Color.green;
+        pickupLabel.text = "Pickup";
+
+        CreatePickupBeam(bottomHeight);
+    }
+
+    void CreatePickupBeam(float bottomHeight)
+    {
+        GameObject beamObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        beamObject.name = "PickupBeam";
+        beamObject.transform.SetParent(transform, false);
+        beamObject.transform.localPosition = new Vector3(0f, bottomHeight + 2.5f, 0f);
+        beamObject.transform.localScale = new Vector3(0.7f, 2.5f, 0.7f);
+
+        Collider beamCollider = beamObject.GetComponent<Collider>();
+        if (beamCollider != null)
+            beamCollider.enabled = false;
+
+        Material beamMaterial = new Material(Shader.Find("Sprites/Default"));
+        beamMaterial.color = new Color(0.1f, 1f, 0.1f, 0.18f);
+        pickupBeamRenderer = beamObject.GetComponent<Renderer>();
+        pickupBeamRenderer.material = beamMaterial;
     }
 
     void UpdateLabelVisibility()
@@ -139,31 +213,6 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         }
     }
 
-    void CreateDropoffRing(Collider objectCollider, float bottomHeight)
-    {
-        float radius = objectCollider != null
-            ? Mathf.Max(objectCollider.bounds.extents.x, objectCollider.bounds.extents.z) + 0.15f
-            : 1.2f;
-
-        GameObject ringObject = new GameObject("DropOffRing");
-        ringObject.transform.SetParent(transform, false);
-        ringObject.transform.localPosition = new Vector3(0f, bottomHeight + 0.04f, 0f);
-
-        dropoffRing = ringObject.AddComponent<LineRenderer>();
-        dropoffRing.useWorldSpace = false;
-        dropoffRing.loop = true;
-        dropoffRing.positionCount = 48;
-        dropoffRing.widthMultiplier = 0.08f;
-        dropoffRing.material = new Material(Shader.Find("Sprites/Default"));
-        dropoffRing.material.color = new Color(1f, 0.8f, 0.05f, 0.9f);
-
-        for (int index = 0; index < dropoffRing.positionCount; index++)
-        {
-            float angle = index * Mathf.PI * 2f / dropoffRing.positionCount;
-            dropoffRing.SetPosition(index, new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
-        }
-    }
-
     void UpdateDropoffAvailability()
     {
         nande_testing_inventory_management_script inventory =
@@ -181,11 +230,37 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         if (dropoffLabel != null)
             dropoffLabel.gameObject.SetActive(shouldBeActive);
 
-        if (dropoffRing != null)
-            dropoffRing.enabled = shouldBeActive;
-
         if (dropoffBeamRenderer != null)
             dropoffBeamRenderer.enabled = shouldBeActive;
+    }
+
+    void UpdatePickupAvailability()
+    {
+        if (alreadyUsed)
+            return;
+
+        nande_testing_inventory_management_script inventory =
+            FindFirstObjectByType<nande_testing_inventory_management_script>();
+        bool shouldBeActive = inventory != null &&
+            inventory.IsDeliverySetAvailable(deliverySetNumber);
+
+        foreach (Collider pickupCollider in pickupColliders)
+            pickupCollider.enabled = shouldBeActive;
+
+        SetChildrenActive(shouldBeActive);
+        SetPickupVisualsActive(shouldBeActive);
+    }
+
+    void SetPickupVisualsActive(bool isActive)
+    {
+        if (pickupLight != null)
+            pickupLight.enabled = isActive;
+
+        if (pickupLabel != null)
+            pickupLabel.gameObject.SetActive(isActive);
+
+        if (pickupBeamRenderer != null)
+            pickupBeamRenderer.enabled = isActive;
     }
 
     void CreateDropoffBeam(float bottomHeight)
@@ -255,10 +330,17 @@ public class nande_testing_interactable_object_script : MonoBehaviour
             return;
         }
 
+        if (!inventory.IsDeliverySetAvailable(deliverySetNumber))
+        {
+            Debug.Log("Complete and deposit the previous delivery first.");
+            return;
+        }
+
         if (inventory.PickupPackage(gameObject, deliverySetNumber))
         {
             alreadyUsed = true;
             SetChildrenActive(false);
+            SetPickupVisualsActive(false);
 
             Debug.Log("Dove picked up the package!");
         }
@@ -291,7 +373,10 @@ public class nande_testing_interactable_object_script : MonoBehaviour
     void HandleOnkel(nande_testing_inventory_management_script inventory)
     {
         if (inventory.DepositMoney())
+        {
+            ShowMoneyPopup(inventory.LastDepositedAmount, Color.yellow);
             Debug.Log("Money deposited at Onkel's home!");
+        }
     }
 
     void SetChildrenActive(bool isActive)
@@ -303,7 +388,29 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         }
     }
 
+    void FaceTextToPlayer(Transform textTransform)
+    {
+        if (textTransform == null)
+            return;
+
+        Camera playerCamera = Camera.main;
+        if (playerCamera == null)
+            playerCamera = FindFirstObjectByType<Camera>();
+
+        if (playerCamera == null)
+            return;
+
+        Vector3 directionToCamera = textTransform.position - playerCamera.transform.position;
+        if (directionToCamera.sqrMagnitude > 0.001f)
+            textTransform.rotation = Quaternion.LookRotation(directionToCamera, playerCamera.transform.up);
+    }
+
     void ShowPaymentPopup(int payment)
+    {
+        ShowMoneyPopup(payment, Color.green);
+    }
+
+    void ShowMoneyPopup(int amount, Color color)
     {
         GameObject popupObject = new GameObject("PaymentPopup");
         popupObject.transform.SetParent(transform, false);
@@ -314,8 +421,9 @@ public class nande_testing_interactable_object_script : MonoBehaviour
         popupText.alignment = TextAlignment.Center;
         popupText.characterSize = 0.06f;
         popupText.fontSize = 64;
-        popupText.color = Color.green;
-        popupText.text = "+$" + payment;
+        popupText.color = color;
+        popupText.text = "+$" + amount;
+        FaceTextToPlayer(popupObject.transform);
 
         StartCoroutine(AnimatePaymentPopup(popupObject));
     }
@@ -333,6 +441,7 @@ public class nande_testing_interactable_object_script : MonoBehaviour
             Vector3 position = startPosition;
             position.y += progress * 0.8f;
             popupObject.transform.localPosition = position;
+            FaceTextToPlayer(popupObject.transform);
 
             TextMesh popupText = popupObject.GetComponent<TextMesh>();
             if (popupText != null)
