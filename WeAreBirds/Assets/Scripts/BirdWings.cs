@@ -2,39 +2,138 @@ using UnityEngine;
 
 public class BirdWings : MonoBehaviour
 {
-    [Header("Body follows head")]
-    public Transform head;                       // Main Camera
-    public Vector3 bodyOffset = new Vector3(0f, -0.4f, -0.1f);   // tweak this
+    [Header("Left wing (Shoulder -> Elbow -> Wrist)")]
+    public Transform leftShoulder;
+    public Transform leftElbow;
+    public Transform leftWrist;      // end effector, not rotated directly
+    public Transform leftHand;       // IK target (tracked controller)
+    public Transform leftElbowHint;  // optional pole target to bias bend direction
 
-    [Header("Left wing")]
-    public Transform leftShoulder, leftTip, leftHand;
-    [Header("Right wing")]
-    public Transform rightShoulder, rightTip, rightHand;
+    [Header("Right wing (Shoulder -> Elbow -> Wrist)")]
+    public Transform rightShoulder;
+    public Transform rightElbow;
+    public Transform rightWrist;     // end effector, not rotated directly
+    public Transform rightHand;      // IK target (tracked controller)
+    public Transform rightElbowHint; // optional pole target to bias bend direction
 
-    Quaternion leftRest, rightRest;
+    [Header("IK settings")]
+    [Range(0.8f, 1f)]
+    public float maxStretch = 0.98f; // fraction of (upper+lower) length the chain is allowed to reach
+
+    [Header("Hand amplification")]
+    [Tooltip("Multiplies hand movement (relative to its resting position) before driving the wing IK, so small real-world hand motion produces full wing motion.")]
+    public float reachMultiplier = 3f;
+
+    Quaternion leftShoulderRest, leftElbowRest;
+    Quaternion rightShoulderRest, rightElbowRest;
+
+    Vector3 leftHandRestLocalPos, rightHandRestLocalPos;
 
     void Start()
     {
-        leftRest = leftShoulder.localRotation;
-        rightRest = rightShoulder.localRotation;
+        leftShoulderRest = leftShoulder.localRotation;
+        leftElbowRest = leftElbow.localRotation;
+        rightShoulderRest = rightShoulder.localRotation;
+        rightElbowRest = rightElbow.localRotation;
+
+        if (leftHand) leftHandRestLocalPos = leftHand.localPosition;
+        if (rightHand) rightHandRestLocalPos = rightHand.localPosition;
     }
 
     void LateUpdate()
     {
-        // body: follow head position, only copy the yaw (left/right turn)
-        Quaternion yaw = Quaternion.Euler(0f, head.eulerAngles.y, 0f);
-        //transform.SetPositionAndRotation(head.position + yaw * bodyOffset, yaw);
-
-        Aim(leftShoulder, leftTip, leftHand, leftRest);
-        Aim(rightShoulder, rightTip, rightHand, rightRest);
+        SolveTwoBoneIK(leftShoulder, leftElbow, leftWrist, leftHand, leftElbowHint, leftShoulderRest, leftElbowRest, leftHandRestLocalPos);
+        SolveTwoBoneIK(rightShoulder, rightElbow, rightWrist, rightHand, rightElbowHint, rightShoulderRest, rightElbowRest, rightHandRestLocalPos);
     }
 
-    void Aim(Transform shoulder, Transform tip, Transform hand, Quaternion rest)
+    // Classic analytic two-bone IK: bends the elbow to match the target distance,
+    // then rotates the shoulder so the wrist points at the target.
+    void SolveTwoBoneIK(Transform shoulder, Transform elbow, Transform wrist, Transform hand, Transform hint,
+        Quaternion shoulderRest, Quaternion elbowRest, Vector3 handRestLocalPos)
     {
-        shoulder.localRotation = rest;   // reset so roll can't build up
-        Vector3 current = tip.position - shoulder.position;
-        Vector3 desired = hand.position - shoulder.position;
-        if (current.sqrMagnitude < 0.0001f || desired.sqrMagnitude < 0.0001f) return;
-        shoulder.rotation = Quaternion.FromToRotation(current, desired) * shoulder.rotation;
+        if (!shoulder || !elbow || !wrist || !hand) return;
+
+        // reset to rest pose first so roll/twist can't build up frame over frame
+        shoulder.localRotation = shoulderRest;
+        elbow.localRotation = elbowRest;
+
+        Vector3 a = shoulder.position;
+        Vector3 b = elbow.position;
+        Vector3 c = wrist.position;
+
+        // Amplify the hand's displacement from its resting local position so that small
+        // real-world hand movement produces a full wing stroke.
+        Vector3 amplifiedLocal = handRestLocalPos + (hand.localPosition - handRestLocalPos) * reachMultiplier;
+        Vector3 target = hand.parent != null ? hand.parent.TransformPoint(amplifiedLocal) : hand.position;
+
+        float upperLen = Vector3.Distance(a, b);
+        float lowerLen = Vector3.Distance(b, c);
+        float maxReach = (upperLen + lowerLen) * maxStretch;
+
+        if (upperLen < 0.0001f || lowerLen < 0.0001f) return;
+
+        float currentDist = Vector3.Distance(a, c);
+        float targetDist = Mathf.Clamp(Vector3.Distance(a, target), 0.01f, maxReach);
+
+        float currentAngle = TriangleAngle(currentDist, upperLen, lowerLen);
+        float desiredAngle = TriangleAngle(targetDist, upperLen, lowerLen);
+
+        // pick the plane the elbow bends in: prefer an explicit hint, otherwise use the current bend plane
+        Vector3 bendAxis = hint != null
+            ? Vector3.Cross(b - a, hint.position - a)
+            : Vector3.Cross(b - a, c - a);
+
+        if (bendAxis.sqrMagnitude < 1e-8f)
+            bendAxis = Vector3.Cross(b - a, c - a);
+        if (bendAxis.sqrMagnitude < 1e-8f)
+            bendAxis = shoulder.parent != null ? shoulder.parent.right : Vector3.right;
+
+        bendAxis.Normalize();
+
+        // bend the elbow to change the shoulder-to-wrist distance to the desired one
+        float bendDeltaDeg = (desiredAngle - currentAngle) * Mathf.Rad2Deg;
+        elbow.rotation = Quaternion.AngleAxis(bendDeltaDeg, bendAxis) * elbow.rotation;
+
+        // re-read wrist position now that the elbow moved, then aim the shoulder at the target
+        c = wrist.position;
+        Vector3 currentDir = c - a;
+        Vector3 desiredDir = target - a;
+        if (currentDir.sqrMagnitude > 1e-8f && desiredDir.sqrMagnitude > 1e-8f)
+            shoulder.rotation = Quaternion.FromToRotation(currentDir, desiredDir) * shoulder.rotation;
     }
+
+    // Law of cosines: angle at the vertex between sides sideA and sideB,
+    // given the length of the side opposite that vertex (oppositeLen).
+    static float TriangleAngle(float oppositeLen, float sideA, float sideB)
+    {
+        float cos = (sideA * sideA + sideB * sideB - oppositeLen * oppositeLen) / (2f * sideA * sideB);
+        return Mathf.Acos(Mathf.Clamp(cos, -1f, 1f));
+    }
+
+#if UNITY_EDITOR
+    // Visual debug aid: draw which chain is tracking which target.
+    // Red = left chain, cyan = right chain. Small spheres mark each hand target.
+    void OnDrawGizmos()
+    {
+        DrawChainGizmo(leftShoulder, leftElbow, leftWrist, leftHand, Color.red);
+        DrawChainGizmo(rightShoulder, rightElbow, rightWrist, rightHand, Color.cyan);
+    }
+
+    static void DrawChainGizmo(Transform shoulder, Transform elbow, Transform wrist, Transform hand, Color color)
+    {
+        if (!shoulder || !elbow || !wrist) return;
+
+        Gizmos.color = color;
+        Gizmos.DrawLine(shoulder.position, elbow.position);
+        Gizmos.DrawLine(elbow.position, wrist.position);
+
+        if (hand)
+        {
+            Gizmos.color = color;
+            Gizmos.DrawWireSphere(hand.position, 0.03f);
+            Gizmos.color = new Color(color.r, color.g, color.b, 0.4f);
+            Gizmos.DrawLine(wrist.position, hand.position);
+        }
+    }
+#endif
 }

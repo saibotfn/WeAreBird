@@ -1,0 +1,109 @@
+﻿using UnityEngine;
+
+public class BirdWings : MonoBehaviour
+{
+    [Header("Body follows head")]
+    public Transform head;                       // Main Camera
+    public Vector3 bodyOffset = new Vector3(0f, -0.4f, -0.1f);   // tweak this
+
+    [Header("Left wing (Shoulder -> Elbow -> Wrist)")]
+    public Transform leftShoulder;
+    public Transform leftElbow;
+    public Transform leftWrist;      // end effector, not rotated directly
+    public Transform leftHand;       // IK target (tracked controller)
+    public Transform leftElbowHint;  // optional pole target to bias bend direction
+
+    [Header("Right wing (Shoulder -> Elbow -> Wrist)")]
+    public Transform rightShoulder;
+    public Transform rightElbow;
+    public Transform rightWrist;     // end effector, not rotated directly
+    public Transform rightHand;      // IK target (tracked controller)
+    public Transform rightElbowHint; // optional pole target to bias bend direction
+
+    [Header("IK settings")]
+    [Range(0.8f, 1f)]
+    public float maxStretch = 0.98f; // fraction of (upper+lower) length the chain is allowed to reach
+
+    Quaternion leftShoulderRest, leftElbowRest;
+    Quaternion rightShoulderRest, rightElbowRest;
+
+    void Start()
+    {
+        leftShoulderRest = leftShoulder.localRotation;
+        leftElbowRest = leftElbow.localRotation;
+        rightShoulderRest = rightShoulder.localRotation;
+        rightElbowRest = rightElbow.localRotation;
+    }
+
+    void LateUpdate()
+    {
+        // body: follow head position, only copy the yaw (left/right turn)
+        // NOTE: left disabled - "head" (Main Camera) is parented under this same
+        // transform, and FlapFlight already drives this transform's position/rotation
+        // via the Rigidbody, so writing to it here causes a feedback loop (runaway spin).
+        //Quaternion yaw = Quaternion.Euler(0f, head.eulerAngles.y, 0f);
+        //transform.SetPositionAndRotation(head.position + yaw * bodyOffset, yaw);
+
+        SolveTwoBoneIK(leftShoulder, leftElbow, leftWrist, leftHand, leftElbowHint, leftShoulderRest, leftElbowRest);
+        SolveTwoBoneIK(rightShoulder, rightElbow, rightWrist, rightHand, rightElbowHint, rightShoulderRest, rightElbowRest);
+    }
+
+    // Classic analytic two-bone IK: bends the elbow to match the target distance,
+    // then rotates the shoulder so the wrist points at the target.
+    void SolveTwoBoneIK(Transform shoulder, Transform elbow, Transform wrist, Transform hand, Transform hint,
+        Quaternion shoulderRest, Quaternion elbowRest)
+    {
+        if (!shoulder || !elbow || !wrist || !hand) return;
+
+        // reset to rest pose first so roll/twist can't build up frame over frame
+        shoulder.localRotation = shoulderRest;
+        elbow.localRotation = elbowRest;
+
+        Vector3 a = shoulder.position;
+        Vector3 b = elbow.position;
+        Vector3 c = wrist.position;
+        Vector3 target = hand.position;
+
+        float upperLen = Vector3.Distance(a, b);
+        float lowerLen = Vector3.Distance(b, c);
+        float maxReach = (upperLen + lowerLen) * maxStretch;
+
+        if (upperLen < 0.0001f || lowerLen < 0.0001f) return;
+
+        float currentDist = Vector3.Distance(a, c);
+        float targetDist = Mathf.Clamp(Vector3.Distance(a, target), 0.01f, maxReach);
+
+        float currentAngle = TriangleAngle(currentDist, upperLen, lowerLen);
+        float desiredAngle = TriangleAngle(targetDist, upperLen, lowerLen);
+
+        // pick the plane the elbow bends in: prefer an explicit hint, otherwise use the current bend plane
+        Vector3 bendAxis = hint != null
+            ? Vector3.Cross(b - a, hint.position - a)
+            : Vector3.Cross(b - a, c - a);
+
+        if (bendAxis.sqrMagnitude < 1e-8f)
+            bendAxis = Vector3.Cross(b - a, c - a);
+        if (bendAxis.sqrMagnitude < 1e-8f)
+            bendAxis = shoulder.parent != null ? shoulder.parent.right : Vector3.right;
+
+        bendAxis.Normalize();
+
+        // bend the elbow to change the shoulder-to-wrist distance to the desired one
+        float bendDeltaDeg = (desiredAngle - currentAngle) * Mathf.Rad2Deg;
+        elbow.rotation = Quaternion.AngleAxis(bendDeltaDeg, bendAxis) * elbow.rotation;
+
+        // re-read wrist position now that the elbow moved, then aim the shoulder at the target
+        c = wrist.position;
+        Vector3 currentDir = c - a;
+        Vector3 desiredDir = target - a;
+        if (currentDir.sqrMagnitude > 1e-8f && desiredDir.sqrMagnitude > 1e-8f)
+            shoulder.rotation = Quaternion.FromToRotation(currentDir, desiredDir) * shoulder.rotation;
+    }
+
+    // Law of cosines: angle at the vertex between sides sideA and sideB,
+    // given the length of the side opposite that vertex (oppositeLen).
+    static float TriangleAngle(float oppositeLen, float sideA, float sideB)
+    {        float cos = (sideA * sideA + sideB * sideB - oppositeLen * oppositeLen) / (2f * sideA * sideB);
+        return Mathf.Acos(Mathf.Clamp(cos, -1f, 1f));
+    }
+}
