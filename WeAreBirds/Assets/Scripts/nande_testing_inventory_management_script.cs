@@ -6,6 +6,7 @@ public class nande_testing_inventory_management_script : MonoBehaviour
     public bool hasPackage = false;
     public bool packageDelivered = false;
     public int deliveredPackageCount = 0;
+    public int depositedDeliveryCount = 0;
 
     private GameObject carriedPackage;
     private int carriedPackageSetNumber = -1;
@@ -15,11 +16,17 @@ public class nande_testing_inventory_management_script : MonoBehaviour
         return hasPackage && carriedPackageSetNumber == deliverySetNumber;
     }
 
+    public bool IsDeliverySetAvailable(int deliverySetNumber)
+    {
+        return deliverySetNumber <= depositedDeliveryCount + 1;
+    }
+
     public int CarriedPackageSetNumber => carriedPackageSetNumber;
 
     [Header("Currency")]
     public int money = 0;
     public int cashOnHand = 0;
+    public int LastDepositedAmount { get; private set; }
 
     public bool PickupPackage(GameObject package, int deliverySetNumber)
     {
@@ -83,14 +90,18 @@ public class nande_testing_inventory_management_script : MonoBehaviour
 
     public bool DepositMoney()
     {
+        LastDepositedAmount = 0;
+
         if (cashOnHand <= 0)
         {
             Debug.Log("You have no cash to deposit.");
             return false;
         }
 
-        money += cashOnHand;
-        Debug.Log("Deposited: $" + cashOnHand);
+        LastDepositedAmount = cashOnHand;
+        money += LastDepositedAmount;
+        depositedDeliveryCount++;
+        Debug.Log("Deposited: $" + LastDepositedAmount);
         cashOnHand = 0;
         Debug.Log("Total money: $" + money);
 
