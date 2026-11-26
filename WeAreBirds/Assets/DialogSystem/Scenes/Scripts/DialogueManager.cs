@@ -10,26 +10,16 @@ public class DialogueManager : MonoBehaviour
     public TMP_Text npcNameText;
     public TMP_Text dialogueText;
 
-    [Header("Test NPC (Without VR)")]
-    public NPCDialogue testNPC;
+    private NPCDialogue activeNPC;
+    private QuestDialogue activeDialogue;
 
     private string[] dialogueLines;
     private int currentLine = 0;
     private bool dialogueActive = false;
 
-    void Start()
+    void Awake()
     {
-        // Hide dialogue when the game starts
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(false);
-        }
-
-        // Automatically start dialogue for testing
-        if (testNPC != null)
-        {
-            StartDialogue(testNPC);
-        }
+        dialoguePanel.SetActive(false);
     }
 
     void Update()
@@ -37,60 +27,40 @@ public class DialogueManager : MonoBehaviour
         if (Keyboard.current == null)
             return;
 
-        // SPACE: Continue to next dialogue line
         if (Keyboard.current.spaceKey.wasPressedThisFrame
             && dialogueActive)
         {
             NextLine();
         }
-
-        // E: Restart test NPC dialogue
-        if (Keyboard.current.eKey.wasPressedThisFrame
-            && !dialogueActive
-            && testNPC != null)
-        {
-            StartDialogue(testNPC);
-        }
     }
 
-    // Start dialogue with a specific NPC
     public void StartDialogue(NPCDialogue npc)
     {
-        if (npc == null)
-        {
-            Debug.LogWarning("No NPC assigned!");
+        if (npc == null || dialogueActive)
             return;
-        }
 
-        if (dialoguePanel == null ||
-            npcNameText == null ||
-            dialogueText == null)
-        {
-            Debug.LogWarning("Dialogue UI references are missing!");
+        QuestDialogue selectedDialogue =
+            npc.GetCurrentDialogue();
+
+        if (selectedDialogue == null ||
+            selectedDialogue.dialogueLines == null ||
+            selectedDialogue.dialogueLines.Length == 0)
             return;
-        }
 
-        if (npc.dialogueLines == null ||
-            npc.dialogueLines.Length == 0)
-        {
-            Debug.LogWarning("NPC has no dialogue lines!");
-            return;
-        }
+        activeNPC = npc;
+        activeDialogue = selectedDialogue;
 
-        dialogueLines = npc.dialogueLines;
+        dialogueLines = selectedDialogue.dialogueLines;
+
         currentLine = 0;
         dialogueActive = true;
 
         dialoguePanel.SetActive(true);
-
-        // Display NPC name
         npcNameText.text = npc.npcName;
 
-        // Display first dialogue line
         ShowLine();
     }
 
-    // Continue to the next dialogue line
     public void NextLine()
     {
         if (!dialogueActive)
@@ -100,7 +70,7 @@ public class DialogueManager : MonoBehaviour
 
         if (currentLine >= dialogueLines.Length)
         {
-            EndDialogue();
+            CompleteDialogue();
         }
         else
         {
@@ -108,16 +78,39 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    // Display current dialogue line
     private void ShowLine()
     {
         dialogueText.text = dialogueLines[currentLine];
     }
 
-    // Close dialogue
+    private void CompleteDialogue()
+    {
+        if (activeDialogue != null &&
+            activeDialogue.advanceQuestOnCompletion &&
+            QuestManager.Instance != null)
+        {
+            QuestManager.Instance.SetStage(
+                activeDialogue.nextStage
+            );
+        }
+
+        EndDialogue();
+    }
+
+    public void EndDialogue(NPCDialogue npc)
+    {
+        if (activeNPC == npc)
+        {
+            EndDialogue();
+        }
+    }
+
     public void EndDialogue()
     {
         dialogueActive = false;
+        activeNPC = null;
+        activeDialogue = null;
+
         dialoguePanel.SetActive(false);
     }
 }
