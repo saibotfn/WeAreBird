@@ -327,7 +327,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7992559733849893201}
   - {fileID: 6228877315731874809}
   - {fileID: 2384426105790437530}
   - {fileID: 8696322444795230722}
@@ -365,11 +364,11 @@ Transform:
   m_GameObject: {fileID: 2109723932612852910}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 1.3614407, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1426123967496460064}
+  m_Father: {fileID: 6697937262027302264}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!20 &7106897900005795594
 Camera:
@@ -1284,6 +1283,7 @@ Transform:
   m_Children:
   - {fileID: 1426123967496460064}
   - {fileID: 7117717306791753246}
+  - {fileID: 7992559733849893201}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4040280832087093178
@@ -1453,6 +1453,14 @@ MonoBehaviour:
   bankDeadzone: 0.08
   glideForwardAccel: 2.5
   glideCruiseSpeed: 8
+  characterController: {fileID: 0}
+  groundLocomotionComponents: []
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 0
+  groundCheckDistance: 0.25
+  groundCheckOriginOffset: 0.1
+  groundedGraceTime: 0.2
 --- !u!1 &5174989390707823375
 GameObject:
   m_ObjectHideFlags: 0

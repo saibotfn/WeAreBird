@@ -3,11 +3,11 @@ using UnityEngine.InputSystem;
 
 public class nande_testing_simple_FPS_movement_script : MonoBehaviour
 {
-    [Header("Movement")]
+    /*[Header("Movement")]
     public float walkSpeed = 4f;
     public float sprintSpeed = 7f;
     public float jumpHeight = 1.5f;
-    public float gravity = -9.81f;
+    public float gravity = -9.81f;*/
 
     [Header("Camera")]
     public Camera playerCamera;
@@ -17,25 +17,30 @@ public class nande_testing_simple_FPS_movement_script : MonoBehaviour
     public float interactDistance = 3f;
     public LayerMask interactLayers = ~0;
 
-    private CharacterController controller;
-    private Vector3 velocity;
-    private float cameraRotationX;
-    private bool cursorLocked = true;
+    //private CharacterController controller;
+    //private Vector3 velocity;
+    //private float cameraRotationX;
+    //private bool cursorLocked = true;
+    InputAction nextButton;
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
+        nextButton = new InputAction(type: InputActionType.Button);
+        nextButton.AddBinding("<XRController>{RightHand}/primaryButton");
+        nextButton.Enable();
+        /*controller = GetComponent<CharacterController>();
 
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
 
         LockCursor(true);
+        */
     }
 
     void Update()
     {
         Keyboard keyboard = Keyboard.current;
-        Mouse mouse = Mouse.current;
+        /*Mouse mouse = Mouse.current;
 
         if (keyboard == null)
             return;
@@ -56,9 +61,10 @@ public class nande_testing_simple_FPS_movement_script : MonoBehaviour
 
         HandleMovement(keyboard);
         HandleMouseLook(mouse);
+        */
         HandleInteraction(keyboard);
     }
-
+    /*
     void HandleMovement(Keyboard keyboard)
     {
         // WASD movement
@@ -123,13 +129,13 @@ public class nande_testing_simple_FPS_movement_script : MonoBehaviour
         // Horizontal player rotation
         transform.Rotate(Vector3.up * mouseX);
     }
-
+    */
     void HandleInteraction(Keyboard keyboard)
     {
         if (playerCamera == null)
             return;
 
-        if (keyboard.eKey.wasPressedThisFrame)
+        if (nextButton.WasPressedThisFrame())
         {
             Ray ray = new Ray(
                 playerCamera.transform.position,
@@ -150,7 +156,7 @@ public class nande_testing_simple_FPS_movement_script : MonoBehaviour
             }
         }
     }
-
+    /*
     void LockCursor(bool locked)
     {
         cursorLocked = locked;
@@ -161,4 +167,5 @@ public class nande_testing_simple_FPS_movement_script : MonoBehaviour
 
         Cursor.visible = !locked;
     }
+    */
 }

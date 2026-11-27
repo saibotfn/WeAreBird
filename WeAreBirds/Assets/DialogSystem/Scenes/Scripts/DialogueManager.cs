@@ -17,18 +17,21 @@ public class DialogueManager : MonoBehaviour
     private int currentLine = 0;
     private bool dialogueActive = false;
 
+    InputAction nextButton;
+
     void Awake()
     {
         dialoguePanel.SetActive(false);
+        nextButton = new InputAction(type: InputActionType.Button);
+        nextButton.AddBinding("<XRController>{RightHand}/primaryButton"); // A on Quest
+        nextButton.AddBinding("<Keyboard>/space");                        // for testing
+        nextButton.Enable();
     }
 
     void Update()
     {
-        if (Keyboard.current == null)
-            return;
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame
-            && dialogueActive)
+        if (nextButton.WasPressedThisFrame() && dialogueActive)
         {
             NextLine();
         }
